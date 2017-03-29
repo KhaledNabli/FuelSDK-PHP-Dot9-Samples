@@ -1,60 +1,47 @@
 <?php
 
-@header('Content-type: application/json');
+set_time_limit(600);
 
 require('ET_Client.php');
 $myclient = new ET_Client();
 
 // Retrieve Response Data
-$retrieveFields = array("SendID","SubscriberKey","EventDate","Client.ID","EventType","BatchID","TriggeredSendDefinitionObjectID","PartnerKey");
+$retrieveFields = array("EventDate","SubscriberKey");
+//$retrieveFields = array("SendID","SubscriberKey","EventDate","Client.ID","EventType","BatchID","TriggeredSendDefinitionObjectID","PartnerKey");
 
-//$retrieveFilter = array('Property' => 'EventDate','SimpleOperator' => 'greaterThan','DateValue' => "2016-03-08T13:00:00.000");
-$retrieveFilter = array('Property' => 'SendID','SimpleOperator' => 'equals','Value' => "414");
-
-
-// Example for Clicks
-/*
-$clickevent = new ET_ClickEvent();
-$clickevent->authStub = $myclient;
-$clickevent->props = $retrieveFields;
-$clickevent->filter = $retrieveFilter;
-$clickevent->getSinceLastBatch = false;
-$results = $clickevent->get();
-*/
-
-// Example for BounceEvent
-/*
-$getBounceEvent = new ET_BounceEvent();
-$getBounceEvent->authStub = $myclient;
-$getBounceEvent->props = $retrieveFields;
-$getBounceEvent->filter = $retrieveFilter;
-$getBounceEvent->getSinceLastBatch = false;
-$results = $getBounceEvent->get();
-*/
-
-// Example for OpenEvent
-/*
-$openevent = new ET_OpenEvent();
-$openevent->authStub = $myclient;
-$openevent->props = $retrieveFields;
-$openevent->filter = $retrieveFilter;
-$openevent->getSinceLastBatch = false;
-$results = $openevent->get();
-*/
-
-// Create a Data Extension
-/*
-$dataextension = new ET_DataExtension();
-$dataextension->authStub = $myclient;
-$dataextension->props = array("Name" => "SDKDataExtension", "Description" => "SDK Created Data Extension");
-$dataextension->columns = array();
-$dataextension->columns[] = array("Name" => "Key", "FieldType" => "Text", "IsPrimaryKey" => "true","MaxLength" => "100", "IsRequired" => "true");
-$dataextension->columns[] = array("Name" => "Value", "FieldType" => "Text");
-$results = $dataextension->post();
-*/
+//$retrieveFilter = array('Property' => 'EventDate','SimpleOperator' => 'greaterThan','DateValue' => "2016-08-08T13:00:00.000");
+$retrieveFilter = array('Property' => 'SendID','SimpleOperator' => 'equals','Value' => "19");
 
 
-$totalCount = count($results->results);
-$results->resultSize = $totalCount;
+// Example for Different Events
+$myResponseEvent = new ET_ClickEvent();
+//$myResponseEvent = new ET_BounceEvent();
+//$myResponseEvent = new ET_OpenEvent();
+//$myResponseEvent = new ET_SentEvent();
 
-echo json_encode($results);
+
+// This is generic for all event types
+$myResponseEvent->authStub = $myclient; 		// set auftentification
+$myResponseEvent->props = $retrieveFields;		// set fields we want to retrieve
+$myResponseEvent->filter = $retrieveFilter;		// set filters
+$myResponseEvent->getSinceLastBatch = false;	
+$getResponse = $myResponseEvent->get();			// first pull (max 2500 entries)
+
+
+$index = 0;
+$responseObj = array();
+$responseObj["totalCount"] = count($getResponse->results);
+$responseObj["totalDataFrames"] = 1;
+$responseObj["results_0"] = $getResponse->results;
+flush();
+
+// if more than 2500 entries are available, we will get them in 2500 item slices 
+while($getResponse->moreResults) {
+	$getResponse = $myResponseEvent->getMoreResults();
+	$index++;
+	$responseObj["totalDataFrames"]++;
+	$responseObj["totalCount"] += count($getResponse->results);
+	$responseObj["results_" . $index] = $getResponse->results;
+}
+
+echo json_encode($responseObj);
